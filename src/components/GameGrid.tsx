@@ -16,12 +16,9 @@ interface GameGridProps {
   showCageOutlines?: boolean;
   highlightDiagonals?: boolean;
   zerosumMode?: boolean;
-  // live sums for the current/target fraction display
   liveRowSums?: number[];
   liveColSums?: number[];
-  // fill-count hints
   showFillCounts?: boolean;
-  // hint reveal mode — cursor changes, cell gets special hover
   hintRevealMode?: boolean;
 }
 
@@ -494,6 +491,7 @@ const GameGrid: React.FC<GameGridProps> = ({
                       fontWeight: isFilled ? 700 : 400,
                       fontFamily: "'JetBrains Mono', monospace",
                       userSelect: "none",
+                      overflow: "hidden",
                       background: cellBg,
                       ...(cageData ? cageBorderStyle : {
                         border: `1px solid ${isWrong ? "var(--error)" : isFilled ? "var(--border-accent)" : "var(--cell-border)"}`,
@@ -519,7 +517,7 @@ const GameGrid: React.FC<GameGridProps> = ({
                           key="blink-overlay"
                           initial={{ opacity: 0, scale: 0.6 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 1.2 }}
+                          exit={{ opacity: 0, scale: 1 }}
                           transition={{ duration: 0.18 }}
                           style={{
                             position: "absolute", inset: 0,

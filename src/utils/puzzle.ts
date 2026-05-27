@@ -44,7 +44,7 @@ export const generatePuzzle = (
   let C: number[] = [], D: number[] = [];
   let valid = false, attempts = 0;
 
-  while (!valid && attempts < 5000) {
+  while (!valid && attempts < 20000) {
     attempts++;
     Mat = Array(n).fill(null).map(() =>
       Array(n).fill(null).map(() => {
@@ -61,9 +61,9 @@ export const generatePuzzle = (
 
     if (C.some(s => s === 0) || D.some(s => s === 0)) continue;
 
-    // Count rows+cols with |sum| < 7
+    // Count rows+cols with |sum| < 7 — must be EXACTLY the difficulty target
     const smallCount = [...C, ...D].filter(s => Math.abs(s) < 7).length;
-    valid = smallCount >= minSmall;
+    valid = smallCount === minSmall;
   }
 
   const rowFillCount = Array.from({ length: n }, (_, i) =>

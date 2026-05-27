@@ -47,7 +47,7 @@ const SizeNavbar: React.FC<SizeNavbarProps> = ({ sizeIndex, onSelectSize, diffic
         const btn = btnRefs.current[i];
         if (btn) {
           const rect = btn.getBoundingClientRect();
-          setDropdownPos({ top: rect.top - 4, left: rect.left + rect.width / 2 });
+          setDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
         }
         setOpenDropdown(i);
       }
@@ -80,14 +80,16 @@ const SizeNavbar: React.FC<SizeNavbarProps> = ({ sizeIndex, onSelectSize, diffic
           position: "fixed",
           top: dropdownPos.top,
           left: dropdownPos.left,
-          transform: "translate(-50%, -100%)",
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
+          transform: "translateX(-50%)",
+          background: "var(--bg)",
+          border: "1px solid var(--border-accent)",
           borderRadius: 8,
           padding: "4px",
           zIndex: 200,
-          minWidth: 110,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+          minWidth: 120,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          backdropFilter: "none",
+          opacity: 1,
         }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", padding: "3px 8px 5px", fontFamily: "Sora, sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>
             Difficulty
