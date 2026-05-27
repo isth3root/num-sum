@@ -3,23 +3,31 @@
 export interface Puzzle {
   Mat: number[][];
   B: number[][];
-  C: number[];
-  D: number[];
-  diagMain?: number;   // sum of main diagonal (top-left → bottom-right)
-  diagAnti?: number;   // sum of anti-diagonal (top-right → bottom-left)
-  cages?: Cage[];      // cage groups for Cage mode
+  C: number[];      // row sums of selected cells
+  D: number[];      // col sums of selected cells
+  rowFillCount: number[]; // how many cells in each row should be selected
+  colFillCount: number[]; // how many cells in each col should be selected
+  diagMain?: number;
+  diagAnti?: number;
+  cages?: Cage[];
 }
 
 // ─── Grid Sizes ───────────────────────────────────────────────────────────────
 
-export type GridSize = 3 | 5 | 7 | 9 | 13;
+export type GridSize = 3 | 5 | 7 | 9 | 11;
+
+export type Difficulty = "easy" | "medium" | "hard";
 
 export interface SizeConfig {
   n: GridSize;
   label: string;
   tag: string;
-  maxSum: number;
   allowNegative: boolean;
+  difficulties: {
+    easy: number;   // min rows/cols with |sum| < 7
+    medium: number;
+    hard: number;
+  };
 }
 
 // ─── Game Modes ───────────────────────────────────────────────────────────────
@@ -31,56 +39,42 @@ export type AppView = "standard" | "modes" | "daily";
 
 export interface Cage {
   id: number;
-  cells: [number, number][];  // [row, col] pairs
-  target: number;             // sum of selected cells in this cage
+  cells: [number, number][];
+  target: number;
 }
 
 // ─── Irregular Mode ───────────────────────────────────────────────────────────
 
-// A cell that exists in the irregular grid
 export interface IrregularCell {
   row: number;
   col: number;
-  value: number;       // the number shown
-  solution: 0 | 1;    // correct answer: fill (1) or erase (0)
+  value: number;
+  solution: 0 | 1;
 }
 
-export type ShapeId =
-  | "cross"
-  | "ring"
-  | "diamond"
-  | "lshape"
-  | "tshape"
-  | "plus"
-  | "random";
+export type ShapeId = "cross" | "ring" | "diamond" | "lshape" | "tshape" | "plus" | "random";
 
 export interface IrregularShape {
   id: ShapeId;
   name: string;
-  cells: [number, number][]; // which [row,col] cells are active in a bounding box
-  boundingBox: [number, number]; // [rows, cols] of the bounding box
+  cells: [number, number][];
+  boundingBox: [number, number];
 }
 
 // ─── Daily Puzzle ─────────────────────────────────────────────────────────────
 
 export interface DailyRecord {
-  dateKey: string;   // "YYYY-MM-DD"
+  dateKey: string;
   solved: boolean;
-  time: number;      // seconds
+  time: number;
   hearts: number;
 }
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
 
 export type ThemeId =
-  | "obsidian"
-  | "pearl"
-  | "aurora"
-  | "ember"
-  | "jade"
-  | "void"
-  | "sakura"
-  | "slate";
+  | "obsidian" | "pearl" | "aurora" | "ember"
+  | "jade" | "void" | "sakura" | "slate";
 
 export interface Theme {
   id: ThemeId;

@@ -1,21 +1,50 @@
-import { type Puzzle, type GridSize, type Cage } from "../types";
+import { type Puzzle, type GridSize, type Cage, type Difficulty } from "../types";
 
 type Rng = () => number;
 function defaultRng(): Rng { return () => Math.random(); }
+
+function shuffle<T>(arr: T[], rng: Rng): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Difficulty → min number of rows+cols with |sum| < 7
+// const DIFF_THRESHOLDS: Record<Difficulty, number> = {
+//   easy: 0,    // filled in dynamically per size
+//   medium: 0,
+//   hard: 0,
+// };
+
+// Per-size min easy rows/cols with |sum| < 7
+function minEasyCount(n: GridSize, difficulty: Difficulty): number {
+  const table: Record<GridSize, Record<Difficulty, number>> = {
+    3:  { easy: 2, medium: 1, hard: 0 },
+    5:  { easy: 3, medium: 2, hard: 0 },
+    7:  { easy: 4, medium: 3, hard: 1 },
+    9:  { easy: 5, medium: 4, hard: 2 },
+    11: { easy: 6, medium: 5, hard: 3 },
+  };
+  return table[n]?.[difficulty] ?? 0;
+}
 
 // ─── Standard puzzle generator ────────────────────────────────────────────────
 
 export const generatePuzzle = (
   n: GridSize,
   allowNegative: boolean,
-  maxSum: number,
+  difficulty: Difficulty = "easy",
   rng: Rng = defaultRng()
 ): Puzzle => {
+  const minSmall = minEasyCount(n, difficulty);
   let Mat: number[][] = [], B: number[][] = [], MatB: number[][] = [];
-  let SumN_Row: number[] = [], SumN_Col: number[] = [];
+  let C: number[] = [], D: number[] = [];
   let valid = false, attempts = 0;
 
-  while (!valid && attempts < 2000) {
+  while (!valid && attempts < 5000) {
     attempts++;
     Mat = Array(n).fill(null).map(() =>
       Array(n).fill(null).map(() => {
@@ -27,17 +56,24 @@ export const generatePuzzle = (
       Array(n).fill(null).map(() => Math.round(rng()))
     );
     MatB = Mat.map((row, i) => row.map((v, j) => v * B[i][j]));
-    SumN_Row = MatB.map(row => row.reduce((a, b) => a + b, 0));
-    SumN_Col = MatB[0].map((_, j) => MatB.reduce((s, row) => s + row[j], 0));
+    C = MatB.map(row => row.reduce((a, b) => a + b, 0));
+    D = MatB[0].map((_, j) => MatB.reduce((s, row) => s + row[j], 0));
 
-    valid =
-      SumN_Row.every(s => s !== 0) &&
-      SumN_Col.every(s => s !== 0) &&
-      (SumN_Row.some(s => Math.abs(s) <= maxSum) ||
-       SumN_Col.some(s => Math.abs(s) <= maxSum));
+    if (C.some(s => s === 0) || D.some(s => s === 0)) continue;
+
+    // Count rows+cols with |sum| < 7
+    const smallCount = [...C, ...D].filter(s => Math.abs(s) < 7).length;
+    valid = smallCount >= minSmall;
   }
 
-  return { Mat, B, C: SumN_Row, D: SumN_Col };
+  const rowFillCount = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) => B[i][j]).reduce((a, b) => a + b, 0)
+  );
+  const colFillCount = Array.from({ length: n }, (_, j) =>
+    Array.from({ length: n }, (_, i) => B[i][j]).reduce((a, b) => a + b, 0)
+  );
+
+  return { Mat, B, C, D, rowFillCount, colFillCount };
 };
 
 // ─── Diagonal puzzle generator ────────────────────────────────────────────────
@@ -45,10 +81,10 @@ export const generatePuzzle = (
 export const generateDiagonalPuzzle = (
   n: GridSize,
   allowNegative: boolean,
-  maxSum: number,
+  difficulty: Difficulty = "easy",
   rng: Rng = defaultRng()
 ): Puzzle => {
-  const base = generatePuzzle(n, allowNegative, maxSum, rng);
+  const base = generatePuzzle(n, allowNegative, difficulty, rng);
   const { Mat, B } = base;
   const diagMain = Array.from({ length: n }, (_, i) => Mat[i][i] * B[i][i]).reduce((a, b) => a + b, 0);
   const diagAnti = Array.from({ length: n }, (_, i) => Mat[i][n - 1 - i] * B[i][n - 1 - i]).reduce((a, b) => a + b, 0);
@@ -57,68 +93,82 @@ export const generateDiagonalPuzzle = (
 
 // ─── Zero-Sum puzzle generator ────────────────────────────────────────────────
 //
-// Algebraic construction that GUARANTEES both row and column sums = 0:
+// Guaranteed algebraic construction — BUT shuffles the "fixup" row and column
+// so it's NOT always the last row/last column (preventing the trivial exploit).
 //
-// 1. Fill the (n-1)×(n-1) interior with random ±1..9 values and random B
-// 2. Last column: set Mat[i][n-1] = -(sum of filled cells in row i), B[i][n-1]=1
-// 3. Last row:    set Mat[n-1][j] = -(sum of filled cells in col j), B[n-1][j]=1
-// 4. Corner [n-1][n-1]: both constraints agree → set to cancel both
-//
-// Values used: any ±1..9, not just ±2. Distractors fill unfilled cells.
+// Algorithm:
+//  1. Choose a random pivot row R and pivot col C
+//  2. Fill all cells NOT in R or C freely
+//  3. For each non-pivot row i: set Mat[i][C] to cancel row i's sum, B[i][C]=1
+//  4. For each non-pivot col j: set Mat[R][j] to cancel col j's sum, B[R][j]=1
+//  5. Corner Mat[R][C]: cancels both pivot row and pivot col
+//  6. Shuffle Mat and B rows/cols so the pivot position is random visually
 
 export const generateZeroSumPuzzle = (
   n: GridSize,
   rng: Rng = defaultRng()
 ): Puzzle => {
-  for (let attempt = 0; attempt < 300; attempt++) {
+  for (let attempt = 0; attempt < 400; attempt++) {
+    // Choose random pivot row and col indices
+    const pivotRow = Math.floor(rng() * n);
+    const pivotCol = Math.floor(rng() * n);
+
     const Mat: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
     const B:   number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
 
-    // Step 1: random interior (n-1)×(n-1)
-    for (let i = 0; i < n - 1; i++) {
-      for (let j = 0; j < n - 1; j++) {
+    // Step 1: fill non-pivot rows × non-pivot cols
+    for (let i = 0; i < n; i++) {
+      if (i === pivotRow) continue;
+      for (let j = 0; j < n; j++) {
+        if (j === pivotCol) continue;
         B[i][j] = rng() < 0.5 ? 1 : 0;
         const v = Math.floor(rng() * 9) + 1;
         Mat[i][j] = rng() < 0.5 ? v : -v;
       }
     }
 
-    // Step 2: last column fixes each row sum to 0
+    // Step 2: pivot column — fix each non-pivot row sum to 0
     let ok = true;
-    for (let i = 0; i < n - 1; i++) {
-      const rowSum = Array.from({ length: n - 1 }, (_, j) => Mat[i][j] * B[i][j])
-        .reduce((a, b) => a + b, 0);
+    for (let i = 0; i < n; i++) {
+      if (i === pivotRow) continue;
+      const rowSum = Array.from({ length: n }, (_, j) =>
+        j === pivotCol ? 0 : Mat[i][j] * B[i][j]
+      ).reduce((a, b) => a + b, 0);
       const needed = -rowSum;
       if (needed === 0 || Math.abs(needed) > 9) { ok = false; break; }
-      Mat[i][n - 1] = needed;
-      B[i][n - 1] = 1;
+      Mat[i][pivotCol] = needed;
+      B[i][pivotCol] = 1;
     }
     if (!ok) continue;
 
-    // Step 3: last row fixes each column sum to 0
-    for (let j = 0; j < n - 1; j++) {
-      const colSum = Array.from({ length: n - 1 }, (_, i) => Mat[i][j] * B[i][j])
-        .reduce((a, b) => a + b, 0);
+    // Step 3: pivot row — fix each non-pivot col sum to 0
+    for (let j = 0; j < n; j++) {
+      if (j === pivotCol) continue;
+      const colSum = Array.from({ length: n }, (_, i) =>
+        i === pivotRow ? 0 : Mat[i][j] * B[i][j]
+      ).reduce((a, b) => a + b, 0);
       const needed = -colSum;
       if (needed === 0 || Math.abs(needed) > 9) { ok = false; break; }
-      Mat[n - 1][j] = needed;
-      B[n - 1][j] = 1;
+      Mat[pivotRow][j] = needed;
+      B[pivotRow][j] = 1;
     }
     if (!ok) continue;
 
-    // Step 4: corner cell — must satisfy last-row sum AND last-col sum = 0
-    const lastRowPartial = Array.from({ length: n - 1 }, (_, j) => Mat[n-1][j] * B[n-1][j])
-      .reduce((a, b) => a + b, 0);
-    const lastColPartial = Array.from({ length: n - 1 }, (_, i) => Mat[i][n-1] * B[i][n-1])
-      .reduce((a, b) => a + b, 0);
-    const fromRow = -lastRowPartial;
-    const fromCol = -lastColPartial;
-    if (fromRow !== fromCol) continue; // sanity check (should always match)
+    // Step 4: corner cell at [pivotRow][pivotCol]
+    const pivotRowPartial = Array.from({ length: n }, (_, j) =>
+      j === pivotCol ? 0 : Mat[pivotRow][j] * B[pivotRow][j]
+    ).reduce((a, b) => a + b, 0);
+    const pivotColPartial = Array.from({ length: n }, (_, i) =>
+      i === pivotRow ? 0 : Mat[i][pivotCol] * B[i][pivotCol]
+    ).reduce((a, b) => a + b, 0);
+    const fromRow = -pivotRowPartial;
+    const fromCol = -pivotColPartial;
+    if (fromRow !== fromCol) continue;
     if (fromRow === 0 || Math.abs(fromRow) > 9) continue;
-    Mat[n-1][n-1] = fromRow;
-    B[n-1][n-1] = 1;
+    Mat[pivotRow][pivotCol] = fromRow;
+    B[pivotRow][pivotCol] = 1;
 
-    // Step 5: distractor values for unfilled cells
+    // Step 5: distractors for unfilled cells
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         if (B[i][j] === 0) {
@@ -129,53 +179,44 @@ export const generateZeroSumPuzzle = (
       }
     }
 
-    // Step 6: verify
+    // Step 6: shuffle rows then cols so the pivot isn't visually predictable
+    const rowPerm = shuffle(Array.from({ length: n }, (_, i) => i), rng);
+    const colPerm = shuffle(Array.from({ length: n }, (_, j) => j), rng);
+    const sMat = rowPerm.map(r => colPerm.map(c => Mat[r][c]));
+    const sB   = rowPerm.map(r => colPerm.map(c => B[r][c]));
+
+    // Verify
     const C = Array.from({ length: n }, (_, i) =>
-      Array.from({ length: n }, (_, j) => Mat[i][j] * B[i][j]).reduce((a, b) => a + b, 0)
+      Array.from({ length: n }, (_, j) => sMat[i][j] * sB[i][j]).reduce((a, b) => a + b, 0)
     );
     const D = Array.from({ length: n }, (_, j) =>
-      Array.from({ length: n }, (_, i) => Mat[i][j] * B[i][j]).reduce((a, b) => a + b, 0)
+      Array.from({ length: n }, (_, i) => sMat[i][j] * sB[i][j]).reduce((a, b) => a + b, 0)
     );
-    if (C.every(s => s === 0) && D.every(s => s === 0)) {
-      return { Mat, B, C, D };
-    }
+    if (!C.every(s => s === 0) || !D.every(s => s === 0)) continue;
+
+    const rowFillCount = Array.from({ length: n }, (_, i) => sB[i].reduce((a, b) => a + b, 0));
+    const colFillCount = Array.from({ length: n }, (_, j) => Array.from({ length: n }, (_, i) => sB[i][j]).reduce((a, b) => a + b, 0));
+
+    return { Mat: sMat, B: sB, C, D, rowFillCount, colFillCount };
   }
-  // Fallback — should never reach
-  return generatePuzzle(n, true, 5, rng);
+  // Fallback (should never reach)
+  return generatePuzzle(n, true, "easy", rng);
 };
 
 // ─── Cage puzzle generator ────────────────────────────────────────────────────
 
-function shuffle<T>(arr: T[], rng: Rng): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-//
-// Each cage contains BOTH filled (B=1) and empty (B=0) cells.
-// The "target" is the sum of ONLY the filled cells in the cage.
-// The player must figure out which cells to select — not just "fill all".
-// Cage sizes: 3-5 cells, with ~40% being filled cells.
-
 function buildCages(n: number, B: number[][], Mat: number[][], rng: Rng): Cage[] {
-  // Build cages over ALL cells (not just filled ones)
   const allCells: [number, number][] = [];
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++)
       allCells.push([i, j]);
 
-  // Shuffle for random cage assignment
   const shuffled = shuffle(allCells, rng);
-
   const assigned = new Set<string>();
   const cages: Cage[] = [];
   let id = 0;
   const key = (r: number, c: number) => `${r},${c}`;
 
-  // Neighbors (all cells, not just filled)
   const neighbors = (r: number, c: number): [number, number][] =>
     ([[-1,0],[1,0],[0,-1],[0,1]] as [number,number][])
       .map(([dr, dc]) => [r + dr, c + dc] as [number,number])
@@ -184,8 +225,7 @@ function buildCages(n: number, B: number[][], Mat: number[][], rng: Rng): Cage[]
   for (const [startR, startC] of shuffled) {
     if (assigned.has(key(startR, startC))) continue;
 
-    // Cage size: 3–5 cells
-    const cageSize = Math.floor(rng() * 3) + 3;
+    const cageSize = Math.floor(rng() * 3) + 3; // 3–5
     const cells: [number, number][] = [[startR, startC]];
     assigned.add(key(startR, startC));
 
@@ -199,11 +239,8 @@ function buildCages(n: number, B: number[][], Mat: number[][], rng: Rng): Cage[]
       } else break;
     }
 
-    // Target = sum of only the FILLED (B=1) cells in this cage
     const filledInCage = cells.filter(([r, c]) => B[r][c] === 1);
-    // Require at least 1 filled and 1 non-filled cell per cage for challenge
     if (filledInCage.length === 0 || filledInCage.length === cells.length) {
-      // Skip — add cells back as unassigned (we'll handle remaining in a catch-all pass)
       cells.forEach(([r, c]) => assigned.delete(key(r, c)));
       continue;
     }
@@ -212,12 +249,11 @@ function buildCages(n: number, B: number[][], Mat: number[][], rng: Rng): Cage[]
     cages.push({ id: id++, cells, target });
   }
 
-  // Catch-all: any remaining unassigned cells form solo cages
+  // Catch-all for any unassigned cells
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
       if (!assigned.has(key(i, j))) {
-        const target = B[i][j] === 1 ? Mat[i][j] : 0;
-        cages.push({ id: id++, cells: [[i, j]], target });
+        cages.push({ id: id++, cells: [[i, j]], target: B[i][j] === 1 ? Mat[i][j] : 0 });
         assigned.add(key(i, j));
       }
     }
@@ -229,10 +265,10 @@ function buildCages(n: number, B: number[][], Mat: number[][], rng: Rng): Cage[]
 export const generateCagePuzzle = (
   n: GridSize,
   allowNegative: boolean,
-  maxSum: number,
+  difficulty: Difficulty = "easy",
   rng: Rng = defaultRng()
 ): Puzzle => {
-  const base = generatePuzzle(n, allowNegative, maxSum, rng);
+  const base = generatePuzzle(n, allowNegative, difficulty, rng);
   const cages = buildCages(n, base.B, base.Mat, rng);
   return { ...base, cages };
 };
@@ -240,7 +276,7 @@ export const generateCagePuzzle = (
 // ─── Seeded wrapper ───────────────────────────────────────────────────────────
 
 export const generateSeededPuzzle = (n: GridSize, rng: Rng): Puzzle =>
-  generatePuzzle(n, false, 5, rng);
+  generatePuzzle(n, false, "easy", rng);
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 

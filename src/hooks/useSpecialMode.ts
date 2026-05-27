@@ -58,10 +58,10 @@ export interface SpecialModeState {
 
 function makePuzzle(mode: StandardMode, n: GridSize): Puzzle {
   switch (mode) {
-    case "diagonal": return generateDiagonalPuzzle(n, false, 5);
-    case "cage":     return generateCagePuzzle(n, false, 5);
+    case "diagonal": return generateDiagonalPuzzle(n, false, "easy");
+    case "cage":     return generateCagePuzzle(n, false, "easy");
     case "zerosum":  return generateZeroSumPuzzle(n);
-    default:         return generatePuzzle(n, false, 5);
+    default:         return generatePuzzle(n, false, "easy");
   }
 }
 
