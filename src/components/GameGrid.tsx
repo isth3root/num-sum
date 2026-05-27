@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { type Puzzle, type Cage } from "../types";
 
 interface GameGridProps {
@@ -461,7 +462,7 @@ const GameGrid: React.FC<GameGridProps> = ({
                   && !cageData.cageCompleted.has(cageId) && isFilled;
 
                 return (
-                  <div
+                  <motion.div
                     key={cellKey}
                     onClick={e => {
                       e.preventDefault();
@@ -476,6 +477,14 @@ const GameGrid: React.FC<GameGridProps> = ({
                     onPointerUp={lph.onPointerUp}
                     onPointerLeave={lph.onPointerLeave}
                     className={`cell ${isWrong ? "wrong" : isBlinking ? "blink" : isFilled ? "filled" : !isDone ? "idle" : ""}`}
+                    // Fill pop: scale 1 → 1.14 → 1 when cell becomes filled
+                    animate={
+                      isWrong
+                        ? { x: [0, -5, 5, -4, 4, 0], transition: { duration: 0.35, ease: "easeOut" } }
+                        : isFilled
+                        ? { scale: [1, 1.14, 1], transition: { duration: 0.18, ease: [0.34, 1.56, 0.64, 1] } }
+                        : { x: 0, scale: 1 }
+                    }
                     style={{
                       position: "relative",
                       width: cellSize, height: cellSize,
@@ -485,12 +494,10 @@ const GameGrid: React.FC<GameGridProps> = ({
                       fontWeight: isFilled ? 700 : 400,
                       fontFamily: "'JetBrains Mono', monospace",
                       userSelect: "none",
-                      transition: "background 0.15s, transform 0.1s, box-shadow 0.15s",
                       background: cellBg,
                       ...(cageData ? cageBorderStyle : {
                         border: `1px solid ${isWrong ? "var(--error)" : isFilled ? "var(--border-accent)" : "var(--cell-border)"}`,
                       }),
-                      // Filled cage cells: thicker colored border so user knows which cage
                       ...(filledCageOverlay ? {
                         boxShadow: `inset 0 0 0 2px ${cageData!.cageColors.get(cageId!)?.replace("0.5", "1") ?? "var(--border-accent)"}`,
                       } : {}),
@@ -505,9 +512,28 @@ const GameGrid: React.FC<GameGridProps> = ({
                       outline: (isMainDiag || isAntiDiag) && !cageData ? "1.5px solid var(--border-accent)" : "none",
                     }}
                   >
+                    {/* Row/col completion wave — staggered glow overlay */}
+                    <AnimatePresence>
+                      {isBlinking && (
+                        <motion.div
+                          key="blink-overlay"
+                          initial={{ opacity: 0, scale: 0.6 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 1.2 }}
+                          transition={{ duration: 0.18 }}
+                          style={{
+                            position: "absolute", inset: 0,
+                            borderRadius: 6,
+                            background: "var(--accent-glow)",
+                            pointerEvents: "none",
+                            zIndex: 1,
+                          }}
+                        />
+                      )}
+                    </AnimatePresence>
                     {cageLabelEl}
                     {isErased ? "" : val}
-                  </div>
+                  </motion.div>
                 );
               })}
 

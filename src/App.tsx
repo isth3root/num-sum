@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "./hooks/useGame";
 import { useTheme } from "./hooks/useTheme";
 import { useAppView } from "./hooks/useAppView";
@@ -62,76 +63,103 @@ const App: React.FC = () => {
       {/* ── Tab Navigation ── */}
       <AppTabs view={view} onSelect={setView} />
 
-      {/* ── Standard View ── */}
-      {view === "standard" && (
-        <>
-          <SizeNavbar
-            sizeIndex={game.sizeIndex}
-            difficulty={game.difficulty}
-            onSelectSize={game.setSizeIndex}
-            onSelectDifficulty={game.setDifficulty}
-          />
-
-          <StatsBar
-            hearts={game.hearts}
-            progress={game.progress}
-            time={game.time}
-          />
-
-          {/* Hint bar — only for medium/big/large, below the puzzle */}
-
-          <main className="game-area">
-            <GameGrid
-              puzzle={game.puzzle}
-              playerB={game.playerB}
-              wrongCells={game.wrongCells}
-              blinkingCells={game.blinkingCells}
-              onCellClick={game.handleCellClick}
-              longPressHandlers={game.longPressHandlers}
-              liveRowSums={game.liveRowSums}
-              liveColSums={game.liveColSums}
-              showFillCounts={supportsHints && showFillCounts}
-              hintRevealMode={game.hintRevealMode}
-            />
-          </main>
-
-          {supportsHints && (
-            <div className="hint-section">
-              <div className="hint-section-label">Hints</div>
-              <HintBar
-                showFillCounts={showFillCounts}
-                onToggleFillCounts={() => setShowFillCounts(v => !v)}
-                hintUsed={game.hintUsed}
-                hintRevealMode={game.hintRevealMode}
-                onActivateHintReveal={game.activateHintReveal}
-                onCancelHintReveal={game.cancelHintReveal}
-                supportsHints={supportsHints}
-              />
-            </div>
-          )}
-
-          <div className="hints">
-            <span>Left click → Fill</span>
-            <span className="hint-sep">·</span>
-            <span>Right click / Long press → Erase</span>
-          </div>
-
-          {game.gameOver && (
-            <EndModal
-              showCelebration={game.showCelebration}
-              hearts={game.hearts}
-              time={game.time}
-              progress={game.progress}
-              sizeLabel={game.sizeConfig.tag}
+      {/* ── Tab Views with fade transition ── */}
+      <AnimatePresence mode="wait">
+        {view === "standard" && (
+          <motion.div
+            key="standard"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+          >
+            <SizeNavbar
+              sizeIndex={game.sizeIndex}
               difficulty={game.difficulty}
-              onReset={() => game.resetGame()}
+              onSelectSize={game.setSizeIndex}
+              onSelectDifficulty={game.setDifficulty}
             />
-          )}
-        </>
-      )}
 
-      {view === "daily" && <DailyScreen />}
-      {view === "modes" && <ModesScreen />}
+            <StatsBar
+              hearts={game.hearts}
+              progress={game.progress}
+              time={game.time}
+            />
+
+            <main className="game-area">
+              <GameGrid
+                puzzle={game.puzzle}
+                playerB={game.playerB}
+                wrongCells={game.wrongCells}
+                blinkingCells={game.blinkingCells}
+                onCellClick={game.handleCellClick}
+                longPressHandlers={game.longPressHandlers}
+                liveRowSums={game.liveRowSums}
+                liveColSums={game.liveColSums}
+                showFillCounts={supportsHints && showFillCounts}
+                hintRevealMode={game.hintRevealMode}
+              />
+            </main>
+
+            {supportsHints && (
+              <div className="hint-section">
+                <div className="hint-section-label">Hints</div>
+                <HintBar
+                  showFillCounts={showFillCounts}
+                  onToggleFillCounts={() => setShowFillCounts(v => !v)}
+                  hintUsed={game.hintUsed}
+                  hintRevealMode={game.hintRevealMode}
+                  onActivateHintReveal={game.activateHintReveal}
+                  onCancelHintReveal={game.cancelHintReveal}
+                  supportsHints={supportsHints}
+                />
+              </div>
+            )}
+
+            <div className="hints">
+              <span>Left click → Fill</span>
+              <span className="hint-sep">·</span>
+              <span>Right click / Long press → Erase</span>
+            </div>
+
+            {game.gameOver && (
+              <EndModal
+                showCelebration={game.showCelebration}
+                hearts={game.hearts}
+                time={game.time}
+                progress={game.progress}
+                sizeLabel={game.sizeConfig.tag}
+                difficulty={game.difficulty}
+                onReset={() => game.resetGame()}
+              />
+            )}
+          </motion.div>
+        )}
+
+        {view === "daily" && (
+          <motion.div
+            key="daily"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+          >
+            <DailyScreen />
+          </motion.div>
+        )}
+
+        {view === "modes" && (
+          <motion.div
+            key="modes"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+          >
+            <ModesScreen />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

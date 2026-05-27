@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { formatTime } from "../utils/puzzle";
 import { type Difficulty } from "../types";
 
@@ -67,8 +68,19 @@ const EndModal: React.FC<EndModalProps> = ({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-backdrop" />
-      <div className="modal-card" ref={cardRef}>
+      <motion.div
+        className="modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.25 }}
+      />
+      <motion.div
+        className="modal-card"
+        ref={cardRef}
+        initial={{ opacity: 0, y: 48, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 380, damping: 28, delay: 0.05 }}
+      >
         <div className={`modal-icon ${showCelebration ? "icon-win" : "icon-lose"}`}>
           {showCelebration ? (
             <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
@@ -150,7 +162,7 @@ const EndModal: React.FC<EndModalProps> = ({
         {shareError && (
           <p style={{ fontSize: 11, color: "var(--error)", marginTop: 4, textAlign: "center" }}>{shareError}</p>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 };

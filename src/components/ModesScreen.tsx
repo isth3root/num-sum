@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { type StandardMode } from "../types";
 import GameGrid from "./GameGrid";
 import EndModal from "./EndModal";
@@ -90,9 +91,17 @@ const ModesScreen: React.FC = () => {
       <div className="modes-screen">
         <div className="modes-title">Game Modes</div>
         <div className="modes-subtitle">Choose a variant to play</div>
-        <div className="mode-cards">
+        <motion.div
+          className="mode-cards"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.07 } },
+          }}
+        >
           {MODE_CARDS.map(card => (
-            <button
+            <motion.button
               key={card.id}
               className="mode-card"
               style={{ "--mode-color": card.color } as React.CSSProperties}
@@ -100,6 +109,12 @@ const ModesScreen: React.FC = () => {
                 setActiveMode(card.id);
                 if (card.id !== "irregular") special.setMode(card.id as StandardMode);
               }}
+              variants={{
+                hidden: { opacity: 0, y: 18 },
+                visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 340, damping: 26 } },
+              }}
+              whileHover={{ x: 3 }}
+              whileTap={{ scale: 0.97 }}
             >
               <span className="mode-card-icon" style={{ color: card.color }}>
                 {card.icon}
@@ -111,9 +126,9 @@ const ModesScreen: React.FC = () => {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mode-card-arrow">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
       </div>
     );
   }
